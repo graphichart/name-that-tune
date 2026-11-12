@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Name That Tune</title>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{--bg:#120d24;--panel:#1d1638;--panel2:#271e4a;--line:#3a2f66;--text:#f4f1ff;--muted:#a79fcf;
+  --pink:#ff3d7f;--gold:#ffd23f;--teal:#2ee6c5;--red:#ff4d4d;--green:#33d17a}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button{font:inherit;cursor:pointer;border:0;border-radius:10px;padding:10px 14px;background:var(--panel2);color:var(--text)}
+button:hover:not(:disabled){filter:brightness(1.2)}
+button:disabled{opacity:.4;cursor:not-allowed}
+input,textarea{font:inherit;background:#0c0819;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px;width:100%}
+.muted{color:var(--muted)} .small{font-size:13px}
+.title{font-weight:900;letter-spacing:.04em;background:linear-gradient(90deg,var(--pink),var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent}
+kbd{background:#0c0819;border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:12px}
+
+/* ---------- HOST ---------- */
+.host{max-width:1100px;margin:0 auto;padding:16px}
+.host header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:14px}
+.host h1{margin:0;font-size:28px}
+.grid{display:grid;grid-template-columns:1.4fr 1fr;gap:14px}
+@media (max-width:800px){.grid{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+.card h2{margin:0 0 10px;font-size:16px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.state{font-size:26px;font-weight:800;margin:6px 0 4px}
+.chips{display:flex;gap:8px;margin:10px 0}
+.chip{padding:4px 10px;border-radius:999px;font-size:13px;font-weight:700;background:var(--panel2)}
+.chip.open{background:#123d36;color:var(--teal)} .chip.taken{background:#3d3512;color:var(--gold)}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.btn-pink{background:var(--pink)} .btn-green{background:#1f8f55} .btn-gold{background:#a8860f} .btn-red{background:#a83232} .btn-teal{background:#178c78}
+.big{font-size:18px;padding:14px 18px;font-weight:700}
+.judge{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%}
+.judge .big{padding:18px;font-size:19px}
+table{width:100%;border-collapse:collapse}
+td{padding:6px 4px;border-bottom:1px solid var(--line)}
+td.score{font-weight:800;text-align:right;width:50px}
+td.ctl{text-align:right;white-space:nowrap;width:110px}
+td.ctl button{padding:3px 9px;font-size:13px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:#555}
+.dot.on{background:var(--green)}
+.answer{background:#0c0819;border-radius:10px;padding:10px;margin-top:8px}
+.warn{background:#3d2a12;border:1px solid #7a5520;color:#ffcf8a;border-radius:10px;padding:10px;margin-bottom:12px}
+.log{max-height:160px;overflow:auto;font-size:13px}
+.qrsmall{background:#fff;padding:8px;border-radius:10px;display:inline-block}
+
+/* ---------- DISPLAY (share this in Zoom) ---------- */
+.display{height:100vh;display:grid;grid-template-columns:1.6fr 1fr;gap:3vw;padding:4vh 4vw}
+.display .left{display:flex;flex-direction:column;justify-content:center}
+.display .dtitle{font-size:6vw;line-height:1;margin:0}
+.display .round{font-size:2vw;color:var(--muted);margin:1.5vh 0 4vh}
+.banner{font-size:4vw;font-weight:900;line-height:1.1}
+.banner .sub{display:block;font-size:2vw;font-weight:600;color:var(--muted);margin-top:1.5vh}
+.banner.buzz{color:var(--gold);animation:pulse .8s ease-in-out infinite alternate}
+.banner.open{color:var(--teal)}
+@keyframes pulse{from{transform:scale(1)}to{transform:scale(1.04)}}
+.flash{margin-top:4vh;font-size:2.4vw;font-weight:800;color:var(--green);min-height:3vw}
+.lastsong{margin-top:2vh;font-size:1.6vw;color:var(--muted)}
+.lastsong b{color:var(--text)}
+.display .right{display:flex;flex-direction:column;gap:3vh;justify-content:center}
+.board{background:var(--panel);border:1px solid var(--line);border-radius:2vw;padding:2.5vh 2vw}
+.board h3{margin:0 0 1.5vh;font-size:1.4vw;color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
+.row{display:flex;align-items:center;gap:1vw;font-size:2vw;padding:.9vh 0}
+.row .rk{width:2.4vw;font-weight:900;color:var(--muted)}
+.row:nth-child(2) .rk{color:var(--gold)}
+.row .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .sc{font-weight:900}
+.join{display:flex;gap:1.5vw;align-items:center}
+.join .qr{background:#fff;padding:1vw;border-radius:1vw}
+.join .qr img,.join .qr canvas{width:11vw!important;height:11vw!important}
+.join .txt{font-size:1.5vw}
+.join .txt b{font-size:2.2vw;color:var(--gold)}
+
+/* ---------- PLAYER (phone) ---------- */
+.player{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;padding:16px;padding-bottom:max(16px,env(safe-area-inset-bottom))}
+.player .top{display:flex;justify-content:space-between;align-items:center}
+.player .me{font-weight:800;font-size:18px}
+.player .pts{font-weight:900;font-size:22px;color:var(--gold)}
+.player .mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;text-align:center}
+.buzzer{width:min(72vw,320px);height:min(72vw,320px);border-radius:50%;font-size:44px;font-weight:900;letter-spacing:.05em;
+  background:radial-gradient(circle at 35% 30%,#ff7aa6,var(--pink) 45%,#a3123f);box-shadow:0 12px 0 #6e0b2a,0 18px 40px rgba(255,61,127,.35);
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+.buzzer:active:not(:disabled){transform:translateY(8px);box-shadow:0 4px 0 #6e0b2a}
+.buzzer:disabled{background:#3a3354;box-shadow:0 12px 0 #231d38;opacity:1;color:#8a82b0;font-size:28px}
+.buzzer.mine{background:radial-gradient(circle at 35% 30%,#7cf0b0,var(--green) 45%,#137a43);box-shadow:0 12px 0 #0b4f2a;color:#fff}
+.pmsg{font-size:20px;font-weight:700;min-height:56px}
+.join-form{max-width:360px;width:100%;display:flex;flex-direction:column;gap:12px}
+.conn{font-size:12px;color:var(--muted);text-align:center}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* =========================================================================
+   Name That Tune — one file, three modes:
+     index.html              -> HOST controls (you)
+     index.html?display=CODE -> big screen to share in Zoom (opened from host)
+     index.html?join=CODE    -> PLAYER phone buzzer (via QR code)
+   Phones connect peer-to-peer to the host browser using PeerJS's free
+   public signalling service, so no server of your own is needed.
+   ========================================================================= */
+const PREFIX = 'arcstone-ntt-v1-';
+const params = new URLSearchParams(location.search);
+const app = document.getElementById('app');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const randCode = n => Array.from({length:n}, () => 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*31)]).join('');
+const store = {
+  get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  del(k){ try { localStorage.removeItem(k); } catch {} }
+};
+// Optional: ?peerhost=host:port to use your own PeerJS server instead of the free cloud one.
+function peerOpts(){
+  const ph = params.get('peerhost'); if (!ph) return {debug:1};
+  const [host, port] = ph.split(':');
+  return {debug:1, host, port:Number(port||443), path:'/', secure: location.protocol==='https:'};
+}
+function ranked(players){
+  return Object.entries(players).map(([id,p]) => ({id, ...p}))
+    .sort((a,b) => b.score - a.score || a.name.localeCompare(b.name));
+}
+
+if (params.has('join')) runPlayer(params.get('join').toUpperCase());
+else if (params.has('display')) runDisplay(params.get('display').toUpperCase());
+else runHost();
+
+/* ============================== HOST ============================== */
+function runHost(){
+  const KEY = 'ntt-host-state';
+  let S = store.get(KEY) || fresh();
+  Object.values(S.players).forEach(p => p.online = false);
+  if (S.phase === 'done') S.phase = 'open', S.songBy = S.artistBy = S.buzzedBy = null, S.locked = [];
+  let undo = [];
+  let peer, peerStatus = 'connecting…';
+  const conns = {};               // pid -> DataConnection
+  const bc = new BroadcastChannel('ntt-' + S.room);
+  let displayWin = null;
+
+  function fresh(room){
+    return { room: room || randCode(5), players:{}, round:0, phase:'lobby',
+             songBy:null, artistBy:null, buzzedBy:null, locked:[], answers:'', baseUrl:'', flash:null, log:[] };
+  }
+  const joinUrl = () => (S.baseUrl.trim() || (location.origin + location.pathname)).replace(/\?.*$/,'') + '?join=' + S.room;
+  const answerFor = r => (S.answers.split('\n').map(s => s.trim()).filter(Boolean)[r-1]) || '';
+  const pname = id => S.players[id]?.name || '?';
+
+  function snapshot(){ undo.push(JSON.stringify(S)); if (undo.length > 30) undo.shift(); }
+  function log(t){ S.log.unshift(`Song ${S.round}: ${t}`); S.log = S.log.slice(0,40); }
+  function flash(text){ S.flash = {text, ts: Date.now()}; }
+
+  function changed(){ store.set(KEY, S); broadcast(); render(); }
+
+  function publicState(){
+    const r = ranked(S.players);
+    return { room:S.room, round:S.round, phase:S.phase, songOpen:!S.songBy, artistOpen:!S.artistBy,
+      buzzedBy:S.buzzedBy, buzzedName:S.buzzedBy ? pname(S.buzzedBy) : null,
+      songBy:S.songBy ? pname(S.songBy) : null, artistBy:S.artistBy ? pname(S.artistBy) : null,
+      answer: S.phase==='done' ? answerFor(S.round) : '', last:S.last || null,
+      fresh: !S.songBy && !S.artistBy && !S.locked.length, flash:S.flash, joinUrl:joinUrl(),
+      top: r.slice(0,5).map(p => ({name:p.name, score:p.score})), count:r.length };
+  }
+  function broadcast(){
+    const pub = publicState();
+    bc.postMessage({t:'state', s:pub});
+    for (const [pid, c] of Object.entries(conns)){
+      if (!c.open) continue;
+      const p = S.players[pid]; if (!p) continue;
+      try { c.send({t:'state', s:{...pub, top:undefined, me:{name:p.name, score:p.score,
+        locked:S.locked.includes(pid), buzzedMe:S.buzzedBy===pid}}}); } catch {}
+    }
+  }
+  bc.onmessage = e => { if (e.data?.t === 'hello') broadcast(); };
+
+  // ---- networking ----
+  function startPeer(){
+    peerStatus = 'connecting…'; render();
+    peer = new Peer(PREFIX + S.room, peerOpts());
+    peer.on('open', () => { peerStatus = 'online'; render(); });
+    peer.on('connection', conn => {
+      conn.on('data', msg => onMsg(conn, msg));
+      conn.on('close', () => {
+        if (conn.pid && conns[conn.pid] === conn){ delete conns[conn.pid];
+          if (S.players[conn.pid]) S.players[conn.pid].online = false; changed(); }
+      });
+    });
+    peer.on('disconnected', () => { peerStatus = 'reconnecting…'; render(); setTimeout(() => { try { peer.reconnect(); } catch {} }, 1500); });
+    peer.on('error', err => {
+      if (err.type === 'unavailable-id'){ peerStatus = 'waiting for old session to expire…'; render();
+        peer.destroy(); setTimeout(startPeer, 4000); }
+      else if (['network','server-error','socket-error','socket-closed'].includes(err.type)){ peerStatus = 'network trouble, retrying…'; render(); }
+      else console.warn(err);
+    });
+  }
+  function onMsg(conn, m){
+    if (!m || typeof m !== 'object') return;
+    if (m.t === 'join' && typeof m.pid === 'string'){
+      const name = String(m.name || 'Player').trim().slice(0,20) || 'Player';
+      const old = conns[m.pid]; if (old && old !== conn) try { old.close(); } catch {}
+      conn.pid = m.pid; conns[m.pid] = conn;
+      if (!S.players[m.pid]) S.players[m.pid] = {name, score:0};
+      S.players[m.pid].name = name; S.players[m.pid].online = true;
+      changed();
+    } else if (m.t === 'buzz' && conn.pid && S.players[conn.pid]){
+      if (S.phase === 'open' && !S.locked.includes(conn.pid)){
+        S.phase = 'judging'; S.buzzedBy = conn.pid; buzzSound(); changed();
+      }
+    }
+  }
+
+  // ---- game actions ----
+  // Close out the current song (if any) and open buzzers for the next one.
+  function advance(){
+    S.last = S.round ? { round:S.round, answer:answerFor(S.round),
+      songBy:S.songBy ? pname(S.songBy) : null, artistBy:S.artistBy ? pname(S.artistBy) : null } : null;
+    S.round++; S.phase = 'open'; S.songBy = S.artistBy = S.buzzedBy = null; S.locked = [];
+  }
+  function startGame(){ snapshot(); S.flash = null; advance(); changed(); }
+  function judge(kind){
+    const pid = S.buzzedBy; if (!pid || S.phase !== 'judging') return;
+    snapshot();
+    const p = S.players[pid]; let pts = 0, what = [];
+    if (kind === 'both' || kind === 'song')   if (!S.songBy){ S.songBy = pid; pts++; what.push('song'); }
+    if (kind === 'both' || kind === 'artist') if (!S.artistBy){ S.artistBy = pid; pts++; what.push('artist'); }
+    if (p) p.score += pts;
+    S.locked.push(pid); S.buzzedBy = null;
+    if (pts){ flash(`${p.name} +${pts} (${what.join(' & ')})`); log(`${p.name} got the ${what.join(' & ')} (+${pts})`); }
+    else { flash(`Not quite, ${p?.name}!`); log(`${p?.name} missed`); }
+    if (S.songBy && S.artistBy) advance(); else S.phase = 'open';
+    changed();
+  }
+  function skipSong(){
+    if (S.phase !== 'open' && S.phase !== 'judging') return;
+    snapshot(); log('skipped'); flash('On to the next song!'); advance(); changed();
+  }
+  function reopen(){ snapshot(); S.phase = 'open'; S.buzzedBy = null; changed(); }
+  function doUndo(){
+    if (!undo.length) return;
+    const online = Object.fromEntries(Object.entries(S.players).map(([k,v]) => [k, v.online]));
+    S = JSON.parse(undo.pop());
+    Object.entries(S.players).forEach(([k,v]) => v.online = !!online[k]);
+    changed();
+  }
+  function adjust(pid, d){ snapshot(); S.players[pid].score += d; changed(); }
+  function removePlayer(pid){
+    if (!confirmInline(`remove-${pid}`)) return;
+    snapshot(); delete S.players[pid]; try { conns[pid]?.close(); } catch {} delete conns[pid]; changed();
+  }
+  function resetScores(){
+    if (!confirmInline('reset')) return;
+    snapshot(); Object.values(S.players).forEach(p => p.score = 0);
+    Object.assign(S, {round:0, phase:'lobby', songBy:null, artistBy:null, buzzedBy:null, locked:[], flash:null, last:null, log:[]});
+    changed();
+  }
+  // two-click confirm (avoids browser confirm() dialogs)
+  let pendingConfirm = null;
+  function confirmInline(key){
+    if (pendingConfirm === key){ pendingConfirm = null; return true; }
+    pendingConfirm = key; render(); setTimeout(() => { if (pendingConfirm === key){ pendingConfirm = null; render(); } }, 3000);
+    return false;
+  }
+
+  let ac;
+  function buzzSound(){
+    try {
+      ac = ac || new AudioContext();
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'square'; o.frequency.value = 220; o.connect(g); g.connect(ac.destination);
+      g.gain.setValueAtTime(0.25, ac.currentTime); g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.6);
+      o.start(); o.stop(ac.currentTime + 0.6);
+    } catch {}
+  }
+  function openDisplay(){
+    displayWin = window.open(location.pathname + '?display=' + S.room, 'ntt-display', 'width=1280,height=720');
+    setTimeout(broadcast, 800);
+  }
+
+  // ---- render ----
+  function render(){
+    const ae = document.activeElement, fid = ae && ae.id, sel = fid && ae.selectionStart != null ? [ae.selectionStart, ae.selectionEnd] : null;
+    renderInner();
+    if (fid && document.getElementById(fid)){ const el = document.getElementById(fid); el.focus(); if (sel) try { el.setSelectionRange(...sel); } catch {} }
+  }
+  function renderInner(){
+    const r = ranked(S.players);
+    const st = S.phase;
+    const buzzName = S.buzzedBy ? esc(pname(S.buzzedBy)) : '';
+    const bothOpen = !S.songBy && !S.artistBy;
+    const judging = st === 'judging';
+    const openLeft = !S.songBy ? (!S.artistBy ? 'song & artist' : 'song') : 'artist';
+    let stateText = st === 'lobby' ? 'Players can join now — start when you’re ready'
+      : judging ? `${buzzName} buzzed in!`
+      : bothOpen ? 'Music on — waiting for a buzz…'
+      : `Steal! The ${openLeft} is still open — resume the music`;
+    let actions;
+    if (st === 'lobby'){
+      actions = `<button class="btn-pink big" data-a="start">▶ Start game</button>`;
+    } else {
+      const b = (a, cls, label, key, en) => `<button class="${cls} big" data-a="${a}" ${en ? '' : 'disabled'}>${label} <kbd>${key}</kbd></button>`;
+      actions = `<div class="judge">
+          ${b('both',   'btn-green', 'Got both ✓ +2',  'B', judging && bothOpen)}
+          ${b('song',   'btn-teal',  'Song only +1',   'S', judging && !S.songBy)}
+          ${b('artist', 'btn-gold',  'Artist only +1', 'A', judging && !S.artistBy)}
+          ${b('wrong',  'btn-red',   'Wrong ✗',        'W', judging)}
+        </div>
+        <div class="actions">
+          <button data-a="skip">Skip to next song <kbd>X</kbd></button>
+          ${judging ? `<button data-a="reopen">Ignore this buzz</button>` : ''}
+        </div>`;
+    }
+    const curAns = st === 'lobby' ? answerFor(1) : answerFor(S.round);
+    const lastLine = S.last && st !== 'lobby'
+      ? `<p class="small muted" style="margin:10px 0 0">Last song: ${esc(S.last.answer || 'Song ' + S.last.round)} — ${
+          [S.last.songBy && 'song: ' + esc(S.last.songBy), S.last.artistBy && 'artist: ' + esc(S.last.artistBy)].filter(Boolean).join(', ') || 'nobody'}</p>` : '';
+    const fileWarn = location.protocol === 'file:' && !S.baseUrl.trim()
+      ? `<div class="warn">You're running this from a file on your computer, so phones can't reach the join link. Upload this file to free hosting (see the setup steps) and open it from there, or paste the hosted URL under <b>Settings</b>.</div>` : '';
+
+    app.innerHTML = `
+    <div class="host">
+      <header>
+        <h1 class="title">NAME THAT TUNE</h1>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <span class="small muted">Game code <b style="color:var(--gold)">${S.room}</b> · <span class="dot ${peerStatus==='online'?'on':''}"></span>${esc(peerStatus)}</span>
+          <button class="btn-pink" data-a="display">Open Zoom display window</button>
+          <button data-a="undo" ${undo.length?'':'disabled'}>Undo <kbd>U</kbd></button>
+        </div>
+      </header>
+      ${fileWarn}
+      <div class="grid">
+        <div>
+          <div class="card">
+            <h2>${S.round ? 'Song ' + S.round : 'Ready'}</h2>
+            <div class="state" style="color:${st==='judging'?'var(--gold)':st==='open'?'var(--teal)':'var(--text)'}">${stateText}</div>
+            ${S.round ? `<div class="chips">
+              <span class="chip ${S.songBy?'taken':'open'}">Song: ${S.songBy ? esc(pname(S.songBy)) : 'open'}</span>
+              <span class="chip ${S.artistBy?'taken':'open'}">Artist: ${S.artistBy ? esc(pname(S.artistBy)) : 'open'}</span>
+              ${S.locked.length ? `<span class="chip">Already tried: ${S.locked.length}</span>` : ''}
+            </div>` : ''}
+            ${curAns ? `<div class="answer small"><span class="muted">${st==='lobby'?'First song':'Answer'} (only you see this):</span> <b>${esc(curAns)}</b></div>` : ''}
+            <div class="actions">${actions}</div>
+            ${lastLine}
+            <p class="small muted" style="margin:12px 0 0">Pause Spotify when someone buzzes, then click what they got. If a point is left, buzzers reopen for a steal; once both are claimed it moves to the next song automatically.</p>
+          </div>
+          <div class="card" style="margin-top:14px">
+            <h2>Players (${r.length})</h2>
+            ${r.length ? `<table>${r.map((p,i) => `<tr>
+              <td><span class="dot ${p.online?'on':''}"></span>${i+1}. ${esc(p.name)}</td>
+              <td class="score">${p.score}</td>
+              <td class="ctl"><button data-a="minus" data-id="${p.id}">−</button> <button data-a="plus" data-id="${p.id}">+</button>
+                <button data-a="remove" data-id="${p.id}" title="Remove">${pendingConfirm==='remove-'+p.id?'sure?':'✕'}</button></td>
+            </tr>`).join('')}</table>` : '<p class="muted">Nobody yet — open the display window and have folks scan the QR code.</p>'}
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <h2>Join link</h2>
+            <div class="qrsmall" id="qr"></div>
+            <p class="small" style="word-break:break-all"><a style="color:var(--teal)" href="${esc(joinUrl())}" target="_blank">${esc(joinUrl())}</a></p>
+          </div>
+          <div class="card" style="margin-top:14px">
+            <h2>Answer key (optional)</h2>
+            <p class="small muted" style="margin-top:0">One song per line, in playlist order, e.g. <i>Dancing Queen — ABBA</i>. Only shown to you until the round ends.</p>
+            <textarea id="answers" rows="6" placeholder="Song — Artist">${esc(S.answers)}</textarea>
+          </div>
+          <div class="card" style="margin-top:14px">
+            <h2>Log</h2>
+            <div class="log">${S.log.map(l => `<div>${esc(l)}</div>`).join('') || '<span class="muted small">Nothing yet</span>'}</div>
+          </div>
+          <div class="card" style="margin-top:14px">
+            <h2>Settings</h2>
+            <label class="small muted">Player page URL (only needed if the QR link is wrong)</label>
+            <input id="baseUrl" value="${esc(S.baseUrl)}" placeholder="${esc(location.origin + location.pathname)}">
+            <div class="actions">
+              <button class="btn-red" data-a="reset">${pendingConfirm==='reset'?'Click again to reset':'Reset scores'}</button>
+              <button data-a="newgame">${pendingConfirm==='newgame'?'Click again — new code':'New game code'}</button>
+            </div>
+            <p class="small muted">Shortcuts: <kbd>B</kbd> both · <kbd>S</kbd> song · <kbd>A</kbd> artist · <kbd>W</kbd> wrong · <kbd>X</kbd> skip song · <kbd>U</kbd> undo</p>
+          </div>
+        </div>
+      </div>
+    </div>`;
+    const qrEl = document.getElementById('qr');
+    if (window.QRCode) new QRCode(qrEl, {text: joinUrl(), width:150, height:150, correctLevel: QRCode.CorrectLevel.M});
+    document.getElementById('answers').addEventListener('input', e => { S.answers = e.target.value; store.set(KEY, S); });
+    document.getElementById('answers').addEventListener('change', changed);
+    document.getElementById('baseUrl').addEventListener('input', e => { S.baseUrl = e.target.value; store.set(KEY, S); });
+    document.getElementById('baseUrl').addEventListener('change', changed);
+  }
+
+  app.addEventListener('click', e => {
+    const b = e.target.closest('[data-a]'); if (!b) return;
+    const id = b.dataset.id;
+    ({ start:startGame, both:()=>judge('both'), song:()=>judge('song'), artist:()=>judge('artist'), wrong:()=>judge('wrong'),
+       skip:skipSong, reopen, undo:doUndo, display:openDisplay, reset:resetScores,
+       plus:()=>adjust(id,1), minus:()=>adjust(id,-1), remove:()=>removePlayer(id),
+       newgame:()=>{ if (confirmInline('newgame')){ store.del(KEY); location.reload(); } }
+    })[b.dataset.a]?.();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.target.matches('input,textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
+    const k = e.key.toLowerCase();
+    if (k==='n' && S.phase==='lobby') startGame();
+    else if (S.phase==='judging' && k==='b' && !S.songBy && !S.artistBy) judge('both');
+    else if (S.phase==='judging' && k==='s' && !S.songBy) judge('song');
+    else if (S.phase==='judging' && k==='a' && !S.artistBy) judge('artist');
+    else if (S.phase==='judging' && k==='w') judge('wrong');
+    else if (k==='x') skipSong();
+    else if (k==='u') doUndo();
+  });
+
+  render();
+  if (window.Peer) startPeer(); else { peerStatus = 'could not load PeerJS (check internet / firewall)'; render(); }
+}
+
+/* ============================== DISPLAY ============================== */
+function runDisplay(room){
+  const bc = new BroadcastChannel('ntt-' + room);
+  let s = null, qrFor = '', flashTimer;
+  bc.onmessage = e => { if (e.data?.t === 'state'){ s = e.data.s; render(); } };
+  bc.postMessage({t:'hello'});
+  setInterval(() => { if (!s) bc.postMessage({t:'hello'}); }, 1500);
+
+  function render(){
+    if (!s){ app.innerHTML = `<div class="display"><div class="left"><h1 class="dtitle title">NAME THAT TUNE</h1><p class="round">Waiting for the host window…</p></div></div>`; return; }
+    let banner = '';
+    const open = [s.songOpen && 'song', s.artistOpen && 'artist'].filter(Boolean);
+    if (s.phase === 'lobby') banner = `<div class="banner">Scan the code to join!<span class="sub">${s.count} player${s.count===1?'':'s'} in the game</span></div>`;
+    else if (s.phase === 'open') banner = `<div class="banner open">♪ Buzzers are open<span class="sub">${open.length===2 ? 'Name the song <b>and</b> the artist for 2 points' : `STEAL! The ${open[0]} is still up for grabs`}</span></div>`;
+    else if (s.phase === 'judging') banner = `<div class="banner buzz">${esc(s.buzzedName)} buzzed in!<span class="sub">Go ahead — what is it?</span></div>`;
+    else if (s.phase === 'done') banner = `<div class="banner">${s.answer ? esc(s.answer) : 'Round over'}<span class="sub">${
+      [s.songBy && `Song: ${esc(s.songBy)}`, s.artistBy && `Artist: ${esc(s.artistBy)}`].filter(Boolean).join(' · ') || 'Nobody got this one!'}</span></div>`;
+    const showFlash = s.flash && Date.now() - s.flash.ts < 6000;
+    app.innerHTML = `
+    <div class="display">
+      <div class="left">
+        <h1 class="dtitle title">NAME THAT TUNE</h1>
+        <p class="round">${s.round ? 'Song ' + s.round : 'Get ready'}</p>
+        ${banner}
+        <div class="flash">${showFlash ? esc(s.flash.text) : ''}</div>
+        ${s.last && s.fresh && s.phase === 'open' ? `<div class="lastsong">Last song: <b>${esc(s.last.answer || 'Song ' + s.last.round)}</b>${
+          s.last.songBy || s.last.artistBy ? ` · ${[s.last.songBy && 'Song: ' + esc(s.last.songBy), s.last.artistBy && 'Artist: ' + esc(s.last.artistBy)].filter(Boolean).join(' · ')}` : ''}</div>` : ''}
+      </div>
+      <div class="right">
+        <div class="board"><h3>Leaderboard</h3>
+          ${s.top.length ? s.top.map((p,i) => `<div class="row"><span class="rk">${i+1}</span><span class="nm">${esc(p.name)}</span><span class="sc">${p.score}</span></div>`).join('')
+            : '<div class="row muted">No players yet</div>'}
+        </div>
+        <div class="join"><div class="qr" id="dqr"></div>
+          <div class="txt">Scan to play<br><b>${esc(s.room)}</b></div></div>
+      </div>
+    </div>`;
+    if (window.QRCode) new QRCode(document.getElementById('dqr'), {text: s.joinUrl, width:300, height:300, correctLevel: QRCode.CorrectLevel.M});
+    clearTimeout(flashTimer);
+    if (showFlash) flashTimer = setTimeout(render, 6000 - (Date.now() - s.flash.ts) + 50);
+  }
+  render();
+}
+
+/* ============================== PLAYER ============================== */
+function runPlayer(room){
+  let pid = store.get('ntt-pid'); if (!pid){ pid = randCode(12); store.set('ntt-pid', pid); }
+  let name = store.get('ntt-name') || '';
+  let joined = false, peer = null, conn = null, s = null, status = 'Connecting…', pendingBuzz = false, retry;
+
+  function connect(){
+    clearTimeout(retry);
+    if (!window.Peer){ status = 'Could not load (check your connection)'; render(); return; }
+    if (!peer || peer.destroyed){
+      peer = new Peer(peerOpts());
+      peer.on('open', openConn);
+      peer.on('error', err => {
+        status = err.type === 'peer-unavailable' ? "Can't find the game — is the host's screen open? Retrying…" : 'Connection trouble — retrying…';
+        render(); scheduleRetry(err.type !== 'peer-unavailable');
+      });
+      peer.on('disconnected', () => { try { peer.reconnect(); } catch {} });
+    } else if (peer.open) openConn();
+  }
+  function openConn(){
+    try { conn?.close(); } catch {}
+    conn = peer.connect(PREFIX + room, {reliable:true});
+    conn.on('open', () => { status = 'Connected'; conn.send({t:'join', pid, name}); render(); });
+    conn.on('data', m => { if (m?.t === 'state'){ s = m.s; pendingBuzz = false; render(); } });
+    conn.on('close', () => { status = 'Reconnecting…'; render(); scheduleRetry(false); });
+  }
+  function scheduleRetry(resetPeer){
+    clearTimeout(retry);
+    retry = setTimeout(() => { if (resetPeer){ try { peer.destroy(); } catch {} peer = null; } connect(); }, 2500);
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && joined && !(conn && conn.open)) connect();
+  });
+
+  function buzz(){
+    if (!conn?.open || pendingBuzz) return;
+    pendingBuzz = true; conn.send({t:'buzz'}); try { navigator.vibrate?.(80); } catch {}
+    render();
+  }
+
+  function render(){
+    if (!joined){
+      app.innerHTML = `<div class="player"><div class="mid">
+        <h1 class="title" style="font-size:40px;margin:0">NAME THAT TUNE</h1>
+        <form class="join-form" id="jf">
+          <label class="muted">Your display name</label>
+          <input id="nm" maxlength="20" autocomplete="nickname" value="${esc(name)}" placeholder="e.g. DJ Dustin" required>
+          <button class="btn-pink big" type="submit">Join game ${esc(room)}</button>
+        </form></div></div>`;
+      document.getElementById('jf').addEventListener('submit', e => {
+        e.preventDefault(); name = document.getElementById('nm').value.trim().slice(0,20);
+        if (!name) return; store.set('ntt-name', name); joined = true; render(); connect();
+      });
+      return;
+    }
+    const me = s?.me;
+    let label = 'BUZZ!', disabled = true, cls = '', msg = '';
+    if (!s || !conn?.open){ msg = status; label = '…'; }
+    else if (s.phase === 'lobby'){ msg = "You're in! Waiting for the first song…"; label = 'WAIT'; }
+    else if (s.phase === 'open'){
+      if (me.locked){ msg = "You've had your shot this song."; label = 'LOCKED'; }
+      else if (pendingBuzz){ msg = 'Buzzing…'; label = '…'; }
+      else { disabled = false; msg = s.songOpen && s.artistOpen ? 'Know the song & artist? Buzz!' : `Steal! The ${s.songOpen ? 'song' : 'artist'} is still open`;
+        if (s.fresh && s.last?.answer) msg += `<div class="small muted" style="margin-top:8px;font-weight:400">Last song: ${esc(s.last.answer)}</div>`; }
+    }
+    else if (s.phase === 'judging'){
+      if (me.buzzedMe){ cls = 'mine'; label = "YOU'RE UP"; msg = 'Say your answer out loud!'; }
+      else { label = 'WAIT'; msg = `${esc(s.buzzedName)} buzzed in first`; }
+    }
+    else if (s.phase === 'done'){ label = 'WAIT'; msg = s.answer ? `It was ${esc(s.answer)}` : 'Round over — next song coming up'; }
+
+    app.innerHTML = `<div class="player">
+      <div class="top"><span class="me">${esc(me?.name || name)}</span><span class="pts">${me ? me.score + ' pt' + (me.score===1?'':'s') : ''}</span></div>
+      <div class="mid">
+        <div class="muted">${s?.round ? 'Song ' + s.round : ''}</div>
+        <button class="buzzer ${cls}" id="bz" ${disabled ? 'disabled' : ''}>${label}</button>
+        <div class="pmsg">${msg}</div>
+      </div>
+      <div class="conn">${esc(status)} · game ${esc(room)} · <a href="#" id="rn" style="color:var(--muted)">change name</a></div>
+    </div>`;
+    const bz = document.getElementById('bz');
+    bz.addEventListener('pointerdown', e => { e.preventDefault(); buzz(); });
+    document.getElementById('rn').addEventListener('click', e => { e.preventDefault(); joined = false; render(); });
+  }
+  if (name){ joined = true; connect(); }
+  render();
+}
+</script>
+</body>
+</html>
