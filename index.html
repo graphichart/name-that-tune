@@ -137,6 +137,14 @@ function runHost(){
   let undo = [];
   let peer, peerStatus = 'connecting…';
   const conns = {};               // pid -> DataConnection
+  const lastSeen = {};            // pid -> ms of last message (phones ping every 3s)
+  setInterval(() => {
+    let dirty = false;
+    for (const [pid, p] of Object.entries(S.players)){
+      if (p.online && Date.now() - (lastSeen[pid] || 0) > 10000){ p.online = false; delete conns[pid]; dirty = true; }
+    }
+    if (dirty) changed();
+  }, 3000);
   const bc = new BroadcastChannel('ntt-' + S.room);
   let displayWin = null;
 
@@ -197,10 +205,14 @@ function runHost(){
   }
   function onMsg(conn, m){
     if (!m || typeof m !== 'object') return;
+    if (conn.pid) lastSeen[conn.pid] = Date.now();
+    if (m.t === 'ping' && conn.pid && S.players[conn.pid] && !S.players[conn.pid].online){
+      S.players[conn.pid].online = true; conns[conn.pid] = conn; changed(); return;
+    }
     if (m.t === 'join' && typeof m.pid === 'string'){
       const name = String(m.name || 'Player').trim().slice(0,20) || 'Player';
       const old = conns[m.pid]; if (old && old !== conn) try { old.close(); } catch {}
-      conn.pid = m.pid; conns[m.pid] = conn;
+      conn.pid = m.pid; conns[m.pid] = conn; lastSeen[m.pid] = Date.now();
       if (!S.players[m.pid]) S.players[m.pid] = {name, score:0};
       S.players[m.pid].name = name; S.players[m.pid].online = true;
       changed();
@@ -252,6 +264,14 @@ function runHost(){
   function resetScores(){
     if (!confirmInline('reset')) return;
     snapshot(); Object.values(S.players).forEach(p => p.score = 0);
+    Object.assign(S, {round:0, phase:'lobby', songBy:null, artistBy:null, buzzedBy:null, locked:[], flash:null, last:null, log:[]});
+    changed();
+  }
+  // New game: same code & answer key; drop players who aren't connected, zero everyone else.
+  function newGame(){
+    if (!confirmInline('newgame')) return;
+    snapshot();
+    for (const [id, p] of Object.entries(S.players)){ if (p.online) p.score = 0; else delete S.players[id]; }
     Object.assign(S, {round:0, phase:'lobby', songBy:null, artistBy:null, buzzedBy:null, locked:[], flash:null, last:null, log:[]});
     changed();
   }
@@ -311,9 +331,9 @@ function runHost(){
           ${judging ? `<button data-a="reopen">Ignore this buzz</button>` : ''}
         </div>`;
     }
-    const curAns = st === 'lobby' ? answerFor(1) : answerFor(S.round);
+    const curAns = '';
     const lastLine = S.last && st !== 'lobby'
-      ? `<p class="small muted" style="margin:10px 0 0">Last song: ${esc(S.last.answer || 'Song ' + S.last.round)} — ${
+      ? `<p class="small muted" style="margin:10px 0 0">Song ${S.last.round}: ${
           [S.last.songBy && 'song: ' + esc(S.last.songBy), S.last.artistBy && 'artist: ' + esc(S.last.artistBy)].filter(Boolean).join(', ') || 'nobody'}</p>` : '';
     const fileWarn = location.protocol === 'file:' && !S.baseUrl.trim()
       ? `<div class="warn">You're running this from a file on your computer, so phones can't reach the join link. Upload this file to free hosting (see the setup steps) and open it from there, or paste the hosted URL under <b>Settings</b>.</div>` : '';
@@ -345,13 +365,16 @@ function runHost(){
             <p class="small muted" style="margin:12px 0 0">Pause Spotify when someone buzzes, then click what they got. If a point is left, buzzers reopen for a steal; once both are claimed it moves to the next song automatically.</p>
           </div>
           <div class="card" style="margin-top:14px">
-            <h2>Players (${r.length})</h2>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+              <h2 style="margin:0">Players (${r.length})</h2>
+              <button class="${pendingConfirm==='newgame'?'btn-red':''}" data-a="newgame" title="Clears scores and removes anyone who isn't connected right now">${pendingConfirm==='newgame'?'Click again to clear':'New game'}</button>
+            </div>
             ${r.length ? `<table>${r.map((p,i) => `<tr>
               <td><span class="dot ${p.online?'on':''}"></span>${i+1}. ${esc(p.name)}</td>
               <td class="score">${p.score}</td>
               <td class="ctl"><button data-a="minus" data-id="${p.id}">−</button> <button data-a="plus" data-id="${p.id}">+</button>
                 <button data-a="remove" data-id="${p.id}" title="Remove">${pendingConfirm==='remove-'+p.id?'sure?':'✕'}</button></td>
-            </tr>`).join('')}</table>` : '<p class="muted">Nobody yet — open the display window and have folks scan the QR code.</p>'}
+            </tr>`).join('')}</table>` : '<p class="muted">Nobody yet. Open the display window and have folks scan the QR code.</p>'}
           </div>
         </div>
         <div>
@@ -359,11 +382,6 @@ function runHost(){
             <h2>Join link</h2>
             <div class="qrsmall" id="qr"></div>
             <p class="small" style="word-break:break-all"><a style="color:var(--teal)" href="${esc(joinUrl())}" target="_blank">${esc(joinUrl())}</a></p>
-          </div>
-          <div class="card" style="margin-top:14px">
-            <h2>Answer key (optional)</h2>
-            <p class="small muted" style="margin-top:0">One song per line, in playlist order, e.g. <i>Dancing Queen — ABBA</i>. Only shown to you until the round ends.</p>
-            <textarea id="answers" rows="6" placeholder="Song — Artist">${esc(S.answers)}</textarea>
           </div>
           <div class="card" style="margin-top:14px">
             <h2>Log</h2>
@@ -375,7 +393,7 @@ function runHost(){
             <input id="baseUrl" value="${esc(S.baseUrl)}" placeholder="${esc(location.origin + location.pathname)}">
             <div class="actions">
               <button class="btn-red" data-a="reset">${pendingConfirm==='reset'?'Click again to reset':'Reset scores'}</button>
-              <button data-a="newgame">${pendingConfirm==='newgame'?'Click again — new code':'New game code'}</button>
+              <button data-a="newcode">${pendingConfirm==='newcode'?'Click again — new code':'New game code'}</button>
             </div>
             <p class="small muted">Shortcuts: <kbd>B</kbd> both · <kbd>S</kbd> song · <kbd>A</kbd> artist · <kbd>W</kbd> wrong · <kbd>X</kbd> skip song · <kbd>U</kbd> undo</p>
           </div>
@@ -384,8 +402,6 @@ function runHost(){
     </div>`;
     const qrEl = document.getElementById('qr');
     if (window.QRCode) new QRCode(qrEl, {text: joinUrl(), width:150, height:150, correctLevel: QRCode.CorrectLevel.M});
-    document.getElementById('answers').addEventListener('input', e => { S.answers = e.target.value; store.set(KEY, S); });
-    document.getElementById('answers').addEventListener('change', changed);
     document.getElementById('baseUrl').addEventListener('input', e => { S.baseUrl = e.target.value; store.set(KEY, S); });
     document.getElementById('baseUrl').addEventListener('change', changed);
   }
@@ -396,7 +412,8 @@ function runHost(){
     ({ start:startGame, both:()=>judge('both'), song:()=>judge('song'), artist:()=>judge('artist'), wrong:()=>judge('wrong'),
        skip:skipSong, reopen, undo:doUndo, display:openDisplay, reset:resetScores,
        plus:()=>adjust(id,1), minus:()=>adjust(id,-1), remove:()=>removePlayer(id),
-       newgame:()=>{ if (confirmInline('newgame')){ store.del(KEY); location.reload(); } }
+       newgame:newGame,
+       newcode:()=>{ if (confirmInline('newcode')){ store.del(KEY); location.reload(); } }
     })[b.dataset.a]?.();
   });
   document.addEventListener('keydown', e => {
@@ -440,8 +457,8 @@ function runDisplay(room){
         <p class="round">${s.round ? 'Song ' + s.round : 'Get ready'}</p>
         ${banner}
         <div class="flash">${showFlash ? esc(s.flash.text) : ''}</div>
-        ${s.last && s.fresh && s.phase === 'open' ? `<div class="lastsong">Last song: <b>${esc(s.last.answer || 'Song ' + s.last.round)}</b>${
-          s.last.songBy || s.last.artistBy ? ` · ${[s.last.songBy && 'Song: ' + esc(s.last.songBy), s.last.artistBy && 'Artist: ' + esc(s.last.artistBy)].filter(Boolean).join(' · ')}` : ''}</div>` : ''}
+        ${s.last && s.fresh && s.phase === 'open' ? `<div class="lastsong">Last song: ${
+          [s.last.songBy && 'Song → <b>' + esc(s.last.songBy) + '</b>', s.last.artistBy && 'Artist → <b>' + esc(s.last.artistBy) + '</b>'].filter(Boolean).join(' · ') || 'nobody got it!'}</div>` : ''}
       </div>
       <div class="right">
         <div class="board"><h3>Leaderboard</h3>
@@ -489,6 +506,7 @@ function runPlayer(room){
     clearTimeout(retry);
     retry = setTimeout(() => { if (resetPeer){ try { peer.destroy(); } catch {} peer = null; } connect(); }, 2500);
   }
+  setInterval(() => { if (conn?.open) try { conn.send({t:'ping'}); } catch {} }, 3000);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && joined && !(conn && conn.open)) connect();
   });
