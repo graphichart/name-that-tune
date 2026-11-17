@@ -90,6 +90,19 @@ td.ctl button{padding:3px 9px;font-size:13px}
 .pmsg{font-size:20px;font-weight:700;min-height:56px}
 .join-form{max-width:360px;width:100%;display:flex;flex-direction:column;gap:12px}
 .conn{font-size:12px;color:var(--muted);text-align:center}
+.modes{display:flex;flex-direction:column;gap:8px;margin:4px 0}
+.modes label{display:flex;align-items:center;gap:8px;background:#0c0819;border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer}
+.modes label.sel{border-color:var(--teal)}
+.modes input[type=radio]{width:auto;margin:0;accent-color:var(--teal)}
+.modes input[type=number]{width:70px;padding:4px 8px;text-align:center}
+.clock{font-variant-numeric:tabular-nums}
+.toggle{background:transparent;border:1px solid var(--line)}
+#confetti{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:10}
+.trophy{font-size:8vw;line-height:1}
+.winner{font-size:6.5vw;font-weight:900;margin:1vh 0;line-height:1.05;color:var(--gold)}
+.help{font-size:14px;color:var(--muted);font-weight:400;line-height:1.4;margin-top:12px}
+.help a{color:var(--teal);word-break:break-all}
+.landing input{text-align:center;font-size:24px;letter-spacing:.2em;text-transform:uppercase}
 </style>
 </head>
 <body>
@@ -124,14 +137,119 @@ function ranked(players){
     .sort((a,b) => b.score - a.score || a.name.localeCompare(b.name));
 }
 
+const HOST_KEY = 'ntt-host-state';
+const fmtTime = ms => { const t = Math.max(0, Math.ceil(ms/1000)); return Math.floor(t/60) + ':' + String(t%60).padStart(2,'0'); };
+const modeText = g => g.mode === 'points' ? `First to ${g.target} points wins` : g.mode === 'time' ? `Most points in ${g.minutes} min wins` : '';
+const boardRows = top => top.length
+  ? top.map((p,i) => `<div class="row"><span class="rk">${i+1}</span><span class="nm">${esc(p.name)}</span><span class="sc">${p.score}</span></div>`).join('')
+  : '<div class="row muted">No players yet</div>';
+
+/* ---------- confetti (display + phones) ---------- */
+function confetti(){
+  let cv = document.getElementById('confetti');
+  if (!cv){ cv = document.createElement('canvas'); cv.id = 'confetti'; document.body.appendChild(cv); }
+  const dpr = window.devicePixelRatio || 1, c = cv.getContext('2d');
+  const W = cv.width = innerWidth * dpr, H = cv.height = innerHeight * dpr;
+  const colors = ['#ff3d7f','#ffd23f','#2ee6c5','#8b6cff','#ffffff','#33d17a'];
+  const P = Array.from({length:240}, () => ({ x:Math.random()*W, y:-Math.random()*H, vx:(Math.random()-.5)*3, vy:2+Math.random()*4,
+    r:Math.random()*6, vr:(Math.random()-.5)*.25, w:(6+Math.random()*8)*dpr, h:(10+Math.random()*10)*dpr, c:colors[Math.floor(Math.random()*colors.length)] }));
+  const stopAt = performance.now() + 7000;
+  (function frame(now){
+    c.clearRect(0,0,W,H);
+    let alive = false;
+    for (const q of P){
+      q.x += q.vx*dpr; q.y += q.vy*dpr; q.vy += .04; q.r += q.vr;
+      if (q.y > H && now < stopAt){ q.y = -20; q.x = Math.random()*W; q.vy = 2+Math.random()*3; }
+      if (q.y <= H) alive = true;
+      c.save(); c.translate(q.x, q.y); c.rotate(q.r); c.scale(1, Math.cos(q.r*1.7)); c.fillStyle = q.c; c.fillRect(-q.w/2, -q.h/2, q.w, q.h); c.restore();
+    }
+    if (alive && document.getElementById('confetti') === cv) requestAnimationFrame(frame); else cv.remove();
+  })(performance.now());
+}
+
+/* ---------- sound effects (synthesized, no files needed) ---------- */
+const SFX = (() => {
+  let ac = null, noiseBuf = null;
+  const ctx = () => { if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume(); return ac; };
+  function tone(freq, start, dur, {type='sine', vol=.2, attack=.005}={}){
+    const a = ctx(), t = a.currentTime + start, o = a.createOscillator(), g = a.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(vol, t+attack); g.gain.exponentialRampToValueAtTime(.0001, t+dur);
+    o.connect(g); g.connect(a.destination); o.start(t); o.stop(t+dur+.05);
+  }
+  function bell(f, start=0, vol=.22){ [[1,1],[2,.5],[3.01,.3],[4.2,.18],[5.4,.1]].forEach(([m,v]) => tone(f*m, start, 1.6/(m*.5+.5), {vol:vol*v})); }
+  function noise(){
+    const a = ctx(); if (noiseBuf) return noiseBuf;
+    noiseBuf = a.createBuffer(1, a.sampleRate*2, a.sampleRate); const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random()*2 - 1; return noiseBuf;
+  }
+  const correctSounds = [
+    () => bell(1046.5),                                                     // single bell
+    () => { bell(1318.5, 0, .18); bell(1568, .16, .2); },                    // ding-ding
+    () => [523.25,659.25,783.99,1046.5].forEach((f,i) => tone(f, i*.09, .55, {type:'triangle', vol:.18})),  // happy arpeggio
+    () => { [1568,2093].forEach((f,i) => tone(f, i*.11, .5, {type:'square', vol:.05})); bell(2093, .22, .14); } // game-show chime
+  ];
+  return {
+    unlock: ctx,
+    buzzIn(){ tone(660, 0, .12, {type:'square', vol:.1}); tone(990, .1, .2, {type:'square', vol:.1}); },
+    correct(){ correctSounds[Math.floor(Math.random()*correctSounds.length)](); },
+    wrong(){   // Family Feud-style "X" buzzer
+      const a = ctx(), t = a.currentTime, g = a.createGain(), lp = a.createBiquadFilter();
+      lp.type = 'lowpass'; lp.frequency.value = 1400;
+      g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.25, t+.02); g.gain.setValueAtTime(.25, t+.7); g.gain.exponentialRampToValueAtTime(.0001, t+.85);
+      [110, 116.5, 55].forEach(f => { const o = a.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.connect(lp); o.start(t); o.stop(t+.9); });
+      lp.connect(g); g.connect(a.destination);
+    },
+    win(){     // fanfare + applause
+      const a = ctx(), t0 = a.currentTime, nb = noise(), dur = 5;
+      [[392,0,.14],[523.25,.14,.14],[659.25,.28,.14],[783.99,.42,.5],[659.25,.72,.12],[783.99,.84,1]].forEach(([f,st,d]) => {
+        tone(f, st, d, {type:'sawtooth', vol:.07}); tone(f*2, st, d, {type:'triangle', vol:.05}); });
+      for (let i = 0; i < 360; i++){
+        const st = .4 + Math.random()*dur, swell = Math.sin(Math.PI * (st-.4)/dur);
+        if (Math.random() > swell + .15) continue;
+        const src = a.createBufferSource(), bp = a.createBiquadFilter(), g = a.createGain(), t = t0 + st;
+        src.buffer = nb; bp.type = 'bandpass'; bp.frequency.value = 900 + Math.random()*2400; bp.Q.value = 1.1;
+        g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.3*(.4+Math.random()*.6), t+.004); g.gain.exponentialRampToValueAtTime(.0001, t+.05+Math.random()*.06);
+        src.connect(bp); bp.connect(g); g.connect(a.destination); src.start(t, Math.random()*1.5, .14);
+      }
+      const bed = a.createBufferSource(), bf = a.createBiquadFilter(), bg = a.createGain();
+      bed.buffer = nb; bed.loop = true; bf.type = 'bandpass'; bf.frequency.value = 1600; bf.Q.value = .6;
+      bg.gain.setValueAtTime(.0001, t0); bg.gain.exponentialRampToValueAtTime(.05, t0+1.2); bg.gain.setValueAtTime(.05, t0+dur-.5); bg.gain.exponentialRampToValueAtTime(.0001, t0+dur+.6);
+      bed.connect(bf); bf.connect(bg); bg.connect(a.destination); bed.start(t0); bed.stop(t0+dur+.7);
+    }
+  };
+})();
+
 if (params.has('join')) runPlayer(params.get('join').toUpperCase());
 else if (params.has('display')) runDisplay(params.get('display').toUpperCase());
-else runHost();
+else if (params.has('host') || store.get(HOST_KEY)) runHost();
+else runLanding();
+
+/* ============================== LANDING (typed URL, no code) ============================== */
+function runLanding(){
+  app.innerHTML = `<div class="player landing"><div class="mid">
+    <h1 class="title" style="font-size:40px;margin:0">NAME THAT TUNE</h1>
+    <form class="join-form" id="lf">
+      <label class="muted">Game code (shown on the big screen)</label>
+      <input id="code" maxlength="8" autocomplete="off" autocapitalize="characters" placeholder="ABCDE" required>
+      <button class="btn-pink big" type="submit">Join game</button>
+    </form>
+    <a href="?host" class="small" style="color:var(--muted)">Host a game instead</a>
+  </div></div>`;
+  document.getElementById('lf').addEventListener('submit', e => {
+    e.preventDefault();
+    const c = document.getElementById('code').value.trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
+    if (c) location.search = '?join=' + c;
+  });
+}
 
 /* ============================== HOST ============================== */
 function runHost(){
-  const KEY = 'ntt-host-state';
-  let S = store.get(KEY) || fresh();
+  const KEY = HOST_KEY;
+  let S = Object.assign({mode:'none', target:15, minutes:15, endsAt:null, timeUp:false, winners:null, overAt:null, sound:true}, store.get(KEY) || fresh());
+  store.set(KEY, S);
+  const play = name => { if (S.sound) try { SFX[name](); } catch {} };
+  document.addEventListener('pointerdown', () => { try { SFX.unlock(); } catch {} });
   Object.values(S.players).forEach(p => p.online = false);
   if (S.phase === 'done') S.phase = 'open', S.songBy = S.artistBy = S.buzzedBy = null, S.locked = [];
   let undo = [];
@@ -145,6 +263,16 @@ function runHost(){
     }
     if (dirty) changed();
   }, 3000);
+  // countdown for timed games
+  setInterval(() => {
+    if (S.mode !== 'time' || !S.endsAt) return;
+    const left = S.endsAt - Date.now(), el = document.getElementById('clock');
+    if (el) el.textContent = fmtTime(left);
+    if (left <= 0 && !S.timeUp && (S.phase === 'open' || S.phase === 'judging')){
+      if (S.phase === 'judging'){ S.timeUp = true; flash("Time's up! Last answer…"); changed(); }
+      else { endGame(); changed(); }
+    }
+  }, 500);
   const bc = new BroadcastChannel('ntt-' + S.room);
   let displayWin = null;
 
@@ -168,6 +296,9 @@ function runHost(){
       buzzedBy:S.buzzedBy, buzzedName:S.buzzedBy ? pname(S.buzzedBy) : null,
       songBy:S.songBy ? pname(S.songBy) : null, artistBy:S.artistBy ? pname(S.artistBy) : null,
       answer: S.phase==='done' ? answerFor(S.round) : '', last:S.last || null,
+      mode:S.mode, target:S.target, minutes:S.minutes, endsAt:S.endsAt, remaining:S.endsAt ? S.endsAt - Date.now() : null,
+      timeUp:S.timeUp, overAt:S.overAt, winners:(S.winners||[]).map(pname),
+      winnerScore:(S.winners||[]).length ? (S.players[S.winners[0]]?.score || 0) : 0,
       fresh: !S.songBy && !S.artistBy && !S.locked.length, flash:S.flash, joinUrl:joinUrl(),
       top: r.slice(0,5).map(p => ({name:p.name, score:p.score})), count:r.length };
   }
@@ -178,7 +309,7 @@ function runHost(){
       if (!c.open) continue;
       const p = S.players[pid]; if (!p) continue;
       try { c.send({t:'state', s:{...pub, top:undefined, me:{name:p.name, score:p.score,
-        locked:S.locked.includes(pid), buzzedMe:S.buzzedBy===pid}}}); } catch {}
+        locked:S.locked.includes(pid), buzzedMe:S.buzzedBy===pid, won:(S.winners||[]).includes(pid)}}}); } catch {}
     }
   }
   bc.onmessage = e => { if (e.data?.t === 'hello') broadcast(); };
@@ -218,7 +349,7 @@ function runHost(){
       changed();
     } else if (m.t === 'buzz' && conn.pid && S.players[conn.pid]){
       if (S.phase === 'open' && !S.locked.includes(conn.pid)){
-        S.phase = 'judging'; S.buzzedBy = conn.pid; buzzSound(); changed();
+        S.phase = 'judging'; S.buzzedBy = conn.pid; play('buzzIn'); changed();
       }
     }
   }
@@ -230,7 +361,25 @@ function runHost(){
       songBy:S.songBy ? pname(S.songBy) : null, artistBy:S.artistBy ? pname(S.artistBy) : null } : null;
     S.round++; S.phase = 'open'; S.songBy = S.artistBy = S.buzzedBy = null; S.locked = [];
   }
-  function startGame(){ snapshot(); S.flash = null; advance(); changed(); }
+  function startGame(){
+    snapshot(); S.flash = null; S.winners = null; S.timeUp = false;
+    S.endsAt = S.mode === 'time' ? Date.now() + S.minutes*60000 : null;
+    advance(); changed();
+  }
+  function endGame(){
+    const r = ranked(S.players), top = r.length ? r[0].score : 0;
+    S.winners = top > 0 ? r.filter(p => p.score === top).map(p => p.id) : [];
+    Object.assign(S, {phase:'over', buzzedBy:null, endsAt:null, timeUp:false, overAt:Date.now(), flash:null});
+    log(S.winners.length ? `Game over: ${S.winners.map(pname).join(' & ')} won` : 'Game over');
+    play('win');
+  }
+  function endNow(){ if (!confirmInline('endnow')) return; snapshot(); endGame(); changed(); }
+  function addMinute(){ if (S.endsAt){ S.endsAt += 60000; changed(); } }
+  function playAgain(){
+    snapshot(); Object.values(S.players).forEach(p => p.score = 0);
+    Object.assign(S, {round:0, phase:'lobby', songBy:null, artistBy:null, buzzedBy:null, locked:[], flash:null, last:null, log:[], winners:null, endsAt:null, timeUp:false});
+    changed();
+  }
   function judge(kind){
     const pid = S.buzzedBy; if (!pid || S.phase !== 'judging') return;
     snapshot();
@@ -241,12 +390,16 @@ function runHost(){
     S.locked.push(pid); S.buzzedBy = null;
     if (pts){ flash(`${p.name} +${pts} (${what.join(' & ')})`); log(`${p.name} got the ${what.join(' & ')} (+${pts})`); }
     else { flash(`Not quite, ${p?.name}!`); log(`${p?.name} missed`); }
+    if ((S.mode === 'points' && p && p.score >= S.target) || S.timeUp){ endGame(); changed(); return; }
+    play(pts ? 'correct' : 'wrong');
     if (S.songBy && S.artistBy) advance(); else S.phase = 'open';
     changed();
   }
   function skipSong(){
     if (S.phase !== 'open' && S.phase !== 'judging') return;
-    snapshot(); log('skipped'); flash('On to the next song!'); advance(); changed();
+    snapshot(); log('skipped');
+    if (S.timeUp){ endGame(); changed(); return; }
+    flash('On to the next song!'); advance(); changed();
   }
   function reopen(){ snapshot(); S.phase = 'open'; S.buzzedBy = null; changed(); }
   function doUndo(){
@@ -264,7 +417,7 @@ function runHost(){
   function resetScores(){
     if (!confirmInline('reset')) return;
     snapshot(); Object.values(S.players).forEach(p => p.score = 0);
-    Object.assign(S, {round:0, phase:'lobby', songBy:null, artistBy:null, buzzedBy:null, locked:[], flash:null, last:null, log:[]});
+    Object.assign(S, {round:0, phase:'lobby', songBy:null, artistBy:null, buzzedBy:null, locked:[], flash:null, last:null, log:[], winners:null, endsAt:null, timeUp:false});
     changed();
   }
   // New game: same code & answer key; drop players who aren't connected, zero everyone else.
@@ -272,7 +425,7 @@ function runHost(){
     if (!confirmInline('newgame')) return;
     snapshot();
     for (const [id, p] of Object.entries(S.players)){ if (p.online) p.score = 0; else delete S.players[id]; }
-    Object.assign(S, {round:0, phase:'lobby', songBy:null, artistBy:null, buzzedBy:null, locked:[], flash:null, last:null, log:[]});
+    Object.assign(S, {round:0, phase:'lobby', songBy:null, artistBy:null, buzzedBy:null, locked:[], flash:null, last:null, log:[], winners:null, endsAt:null, timeUp:false});
     changed();
   }
   // two-click confirm (avoids browser confirm() dialogs)
@@ -283,16 +436,6 @@ function runHost(){
     return false;
   }
 
-  let ac;
-  function buzzSound(){
-    try {
-      ac = ac || new AudioContext();
-      const o = ac.createOscillator(), g = ac.createGain();
-      o.type = 'square'; o.frequency.value = 220; o.connect(g); g.connect(ac.destination);
-      g.gain.setValueAtTime(0.25, ac.currentTime); g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.6);
-      o.start(); o.stop(ac.currentTime + 0.6);
-    } catch {}
-  }
   function openDisplay(){
     displayWin = window.open(location.pathname + '?display=' + S.room, 'ntt-display', 'width=1280,height=720');
     setTimeout(broadcast, 800);
@@ -311,13 +454,25 @@ function runHost(){
     const bothOpen = !S.songBy && !S.artistBy;
     const judging = st === 'judging';
     const openLeft = !S.songBy ? (!S.artistBy ? 'song & artist' : 'song') : 'artist';
-    let stateText = st === 'lobby' ? 'Players can join now — start when you’re ready'
-      : judging ? `${buzzName} buzzed in!`
+    const winNames = (S.winners||[]).map(id => esc(pname(id)));
+    let stateText = st === 'lobby' ? 'Players can join now. Pick how to win, then start.'
+      : st === 'over' ? (winNames.length > 1 ? `🏆 It’s a tie: ${winNames.join(' & ')}` : winNames.length ? `🏆 ${winNames[0]} wins!` : 'Game over')
+      : judging ? `${buzzName} buzzed in!${S.timeUp ? ' (time’s up, last answer)' : ''}`
       : bothOpen ? 'Music on — waiting for a buzz…'
       : `Steal! The ${openLeft} is still open — resume the music`;
     let actions;
     if (st === 'lobby'){
-      actions = `<button class="btn-pink big" data-a="start">▶ Start game</button>`;
+      const opt = (v, inner) => `<label class="${S.mode===v?'sel':''}"><input type="radio" name="mode" value="${v}" ${S.mode===v?'checked':''}>${inner}</label>`;
+      actions = `<div style="width:100%">
+          <div class="modes">
+            ${opt('none',   'Play until I end it')}
+            ${opt('points', `First to <input type="number" id="target" min="1" max="999" value="${S.target}"> points wins`)}
+            ${opt('time',   `Most points after <input type="number" id="minutes" min="1" max="180" value="${S.minutes}"> minutes wins`)}
+          </div>
+          <button class="btn-pink big" data-a="start" style="margin-top:12px">▶ Start game</button>
+        </div>`;
+    } else if (st === 'over'){
+      actions = `<button class="btn-pink big" data-a="again">↻ Play again (same players)</button>`;
     } else {
       const b = (a, cls, label, key, en) => `<button class="${cls} big" data-a="${a}" ${en ? '' : 'disabled'}>${label} <kbd>${key}</kbd></button>`;
       actions = `<div class="judge">
@@ -329,6 +484,7 @@ function runHost(){
         <div class="actions">
           <button data-a="skip">Skip to next song <kbd>X</kbd></button>
           ${judging ? `<button data-a="reopen">Ignore this buzz</button>` : ''}
+          <button data-a="endnow" style="margin-left:auto">${pendingConfirm==='endnow'?'Click again to end':'End game now'}</button>
         </div>`;
     }
     const curAns = '';
@@ -344,6 +500,7 @@ function runHost(){
         <h1 class="title">NAME THAT TUNE</h1>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <span class="small muted">Game code <b style="color:var(--gold)">${S.room}</b> · <span class="dot ${peerStatus==='online'?'on':''}"></span>${esc(peerStatus)}</span>
+          <button class="toggle" data-a="sound">${S.sound ? '🔊 Sound on' : '🔇 Sound off'}</button>
           <button class="btn-pink" data-a="display">Open Zoom display window</button>
           <button data-a="undo" ${undo.length?'':'disabled'}>Undo <kbd>U</kbd></button>
         </div>
@@ -353,8 +510,10 @@ function runHost(){
         <div>
           <div class="card">
             <h2>${S.round ? 'Song ' + S.round : 'Ready'}</h2>
-            <div class="state" style="color:${st==='judging'?'var(--gold)':st==='open'?'var(--teal)':'var(--text)'}">${stateText}</div>
-            ${S.round ? `<div class="chips">
+            <div class="state" style="color:${st==='judging'||st==='over'?'var(--gold)':st==='open'?'var(--teal)':'var(--text)'}">${stateText}</div>
+            ${S.round && st !== 'over' ? `<div class="chips">
+              ${S.mode==='points' ? `<span class="chip">First to ${S.target}</span>` : ''}
+              ${S.mode==='time' && S.endsAt ? `<span class="chip">⏱ <span class="clock" id="clock">${fmtTime(S.endsAt - Date.now())}</span></span><button data-a="plusmin" style="padding:3px 9px;font-size:13px">+1 min</button>` : ''}
               <span class="chip ${S.songBy?'taken':'open'}">Song: ${S.songBy ? esc(pname(S.songBy)) : 'open'}</span>
               <span class="chip ${S.artistBy?'taken':'open'}">Artist: ${S.artistBy ? esc(pname(S.artistBy)) : 'open'}</span>
               ${S.locked.length ? `<span class="chip">Already tried: ${S.locked.length}</span>` : ''}
@@ -362,7 +521,7 @@ function runHost(){
             ${curAns ? `<div class="answer small"><span class="muted">${st==='lobby'?'First song':'Answer'} (only you see this):</span> <b>${esc(curAns)}</b></div>` : ''}
             <div class="actions">${actions}</div>
             ${lastLine}
-            <p class="small muted" style="margin:12px 0 0">Pause Spotify when someone buzzes, then click what they got. If a point is left, buzzers reopen for a steal; once both are claimed it moves to the next song automatically.</p>
+            <p class="small muted" style="margin:12px 0 0;${st==='lobby'||st==='over'?'display:none':''}">Pause Spotify when someone buzzes, then click what they got. If a point is left, buzzers reopen for a steal; once both are claimed it moves to the next song automatically.</p>
           </div>
           <div class="card" style="margin-top:14px">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
@@ -402,6 +561,12 @@ function runHost(){
     </div>`;
     const qrEl = document.getElementById('qr');
     if (window.QRCode) new QRCode(qrEl, {text: joinUrl(), width:150, height:150, correctLevel: QRCode.CorrectLevel.M});
+    app.querySelectorAll('input[name=mode]').forEach(r => r.addEventListener('change', () => { S.mode = r.value; changed(); }));
+    [['target','points',999], ['minutes','time',180]].forEach(([id, mode, max]) => {
+      const el = document.getElementById(id); if (!el) return;
+      el.addEventListener('focus', () => { if (S.mode !== mode){ S.mode = mode; changed(); } });
+      el.addEventListener('change', () => { S[id] = Math.min(max, Math.max(1, parseInt(el.value, 10) || S[id])); changed(); });
+    });
     document.getElementById('baseUrl').addEventListener('input', e => { S.baseUrl = e.target.value; store.set(KEY, S); });
     document.getElementById('baseUrl').addEventListener('change', changed);
   }
@@ -412,7 +577,8 @@ function runHost(){
     ({ start:startGame, both:()=>judge('both'), song:()=>judge('song'), artist:()=>judge('artist'), wrong:()=>judge('wrong'),
        skip:skipSong, reopen, undo:doUndo, display:openDisplay, reset:resetScores,
        plus:()=>adjust(id,1), minus:()=>adjust(id,-1), remove:()=>removePlayer(id),
-       newgame:newGame,
+       newgame:newGame, again:playAgain, endnow:endNow, plusmin:addMinute,
+       sound:()=>{ S.sound = !S.sound; changed(); if (S.sound) play('correct'); },
        newcode:()=>{ if (confirmInline('newcode')){ store.del(KEY); location.reload(); } }
     })[b.dataset.a]?.();
   });
@@ -435,16 +601,36 @@ function runHost(){
 /* ============================== DISPLAY ============================== */
 function runDisplay(room){
   const bc = new BroadcastChannel('ntt-' + room);
-  let s = null, qrFor = '', flashTimer;
+  let s = null, flashTimer, lastOver = null;
+  setInterval(() => { const el = document.getElementById('dclock'); if (el && s?.endsAt) el.textContent = fmtTime(s.endsAt - Date.now()); }, 250);
   bc.onmessage = e => { if (e.data?.t === 'state'){ s = e.data.s; render(); } };
   bc.postMessage({t:'hello'});
   setInterval(() => { if (!s) bc.postMessage({t:'hello'}); }, 1500);
 
   function render(){
     if (!s){ app.innerHTML = `<div class="display"><div class="left"><h1 class="dtitle title">NAME THAT TUNE</h1><p class="round">Waiting for the host window…</p></div></div>`; return; }
+    const urlText = esc(s.joinUrl.replace(/^https?:\/\//,'').replace(/\?.*$/,''));
+    if (s.phase === 'over'){
+      const w = s.winners;
+      app.innerHTML = `
+      <div class="display">
+        <div class="left">
+          <div class="trophy">🏆</div>
+          <p class="round" style="margin:2vh 0 0">${w.length > 1 ? 'It\'s a tie!' : w.length ? 'And the winner is…' : 'Game over'}</p>
+          <div class="winner">${w.length ? w.map(esc).join(' & ') : 'Nobody scored!'}</div>
+          ${w.length ? `<div class="banner"><span class="sub" style="margin:0">${w.length > 1 ? 'Each with' : 'With'} ${s.winnerScore} point${s.winnerScore===1?'':'s'}</span></div>` : ''}
+        </div>
+        <div class="right"><div class="board"><h3>Final standings</h3>${boardRows(s.top)}</div></div>
+      </div>`;
+      if (s.overAt !== lastOver){ lastOver = s.overAt; confetti(); }
+      return;
+    }
+    document.getElementById('confetti')?.remove();
     let banner = '';
     const open = [s.songOpen && 'song', s.artistOpen && 'artist'].filter(Boolean);
-    if (s.phase === 'lobby') banner = `<div class="banner">Scan the code to join!<span class="sub">${s.count} player${s.count===1?'':'s'} in the game</span></div>`;
+    const modeLine = s.mode === 'time' && s.endsAt ? `⏱ <span class="clock" id="dclock">${fmtTime(s.endsAt - Date.now())}</span> left`
+      : s.mode === 'points' ? `First to ${s.target} points` : '';
+    if (s.phase === 'lobby') banner = `<div class="banner">Scan the code to join!<span class="sub">${s.count} player${s.count===1?'':'s'} in the game${modeText(s) ? ' · ' + modeText(s) : ''}</span></div>`;
     else if (s.phase === 'open') banner = `<div class="banner open">♪ Buzzers are open<span class="sub">${open.length===2 ? 'Name the song <b>and</b> the artist for 2 points' : `STEAL! The ${open[0]} is still up for grabs`}</span></div>`;
     else if (s.phase === 'judging') banner = `<div class="banner buzz">${esc(s.buzzedName)} buzzed in!<span class="sub">Go ahead — what is it?</span></div>`;
     else if (s.phase === 'done') banner = `<div class="banner">${s.answer ? esc(s.answer) : 'Round over'}<span class="sub">${
@@ -454,7 +640,7 @@ function runDisplay(room){
     <div class="display">
       <div class="left">
         <h1 class="dtitle title">NAME THAT TUNE</h1>
-        <p class="round">${s.round ? 'Song ' + s.round : 'Get ready'}</p>
+        <p class="round">${s.round ? 'Song ' + s.round : 'Get ready'}${s.round && modeLine ? ' · ' + modeLine : ''}</p>
         ${banner}
         <div class="flash">${showFlash ? esc(s.flash.text) : ''}</div>
         ${s.last && s.fresh && s.phase === 'open' ? `<div class="lastsong">Last song: ${
@@ -462,11 +648,10 @@ function runDisplay(room){
       </div>
       <div class="right">
         <div class="board"><h3>Leaderboard</h3>
-          ${s.top.length ? s.top.map((p,i) => `<div class="row"><span class="rk">${i+1}</span><span class="nm">${esc(p.name)}</span><span class="sc">${p.score}</span></div>`).join('')
-            : '<div class="row muted">No players yet</div>'}
+          ${boardRows(s.top)}
         </div>
         <div class="join"><div class="qr" id="dqr"></div>
-          <div class="txt">Scan to play<br><b>${esc(s.room)}</b></div></div>
+          <div class="txt">Scan to play<br><b>${esc(s.room)}</b><br><span style="font-size:1.1vw;color:var(--muted)">or go to ${urlText}</span></div></div>
       </div>
     </div>`;
     if (window.QRCode) new QRCode(document.getElementById('dqr'), {text: s.joinUrl, width:300, height:300, correctLevel: QRCode.CorrectLevel.M});
@@ -481,9 +666,18 @@ function runPlayer(room){
   let pid = store.get('ntt-pid'); if (!pid){ pid = randCode(12); store.set('ntt-pid', pid); }
   let name = store.get('ntt-name') || '';
   let joined = false, peer = null, conn = null, s = null, status = 'Connecting…', pendingBuzz = false, retry;
+  let attempts = 0, watchdog, deadline = null, lastOver = null;
+  setInterval(() => { const el = document.getElementById('pclock'); if (el && deadline) el.textContent = fmtTime(deadline - Date.now()); }, 250);
 
   function connect(){
     clearTimeout(retry);
+    // Watchdog: if we're not connected within 9s, throw the connection away and start fresh.
+    clearTimeout(watchdog);
+    watchdog = setTimeout(() => {
+      if (conn && conn.open) return;
+      attempts++; status = 'Still connecting…'; render();
+      try { peer?.destroy(); } catch {} peer = null; connect();
+    }, 9000);
     if (!window.Peer){ status = 'Could not load (check your connection)'; render(); return; }
     if (!peer || peer.destroyed){
       peer = new Peer(peerOpts());
@@ -497,9 +691,9 @@ function runPlayer(room){
   }
   function openConn(){
     try { conn?.close(); } catch {}
-    conn = peer.connect(PREFIX + room, {reliable:true});
-    conn.on('open', () => { status = 'Connected'; conn.send({t:'join', pid, name}); render(); });
-    conn.on('data', m => { if (m?.t === 'state'){ s = m.s; pendingBuzz = false; render(); } });
+    conn = peer.connect(PREFIX + room, {reliable:true, serialization:'json'});
+    conn.on('open', () => { attempts = 0; clearTimeout(watchdog); status = 'Connected'; conn.send({t:'join', pid, name}); render(); });
+    conn.on('data', m => { if (m?.t === 'state'){ s = m.s; deadline = s.remaining != null ? Date.now() + s.remaining : null; pendingBuzz = false; render(); } });
     conn.on('close', () => { status = 'Reconnecting…'; render(); scheduleRetry(false); });
   }
   function scheduleRetry(resetPeer){
@@ -533,9 +727,16 @@ function runPlayer(room){
       return;
     }
     const me = s?.me;
+    if (s?.phase !== 'over') document.getElementById('confetti')?.remove();
     let label = 'BUZZ!', disabled = true, cls = '', msg = '';
-    if (!s || !conn?.open){ msg = status; label = '…'; }
-    else if (s.phase === 'lobby'){ msg = "You're in! Waiting for the first song…"; label = 'WAIT'; }
+    if (!s || !conn?.open){ msg = esc(status); label = '…';
+      if (attempts >= 2) msg += `<div class="help">Having trouble? Try switching between Wi-Fi and cellular, or open <a href="${esc(location.origin + location.pathname)}">${esc(location.host + location.pathname)}</a> in Safari or Chrome and enter code <b>${esc(room)}</b>.</div>`; }
+    else if (s.phase === 'over'){
+      cls = me.won ? 'mine' : ''; label = me.won ? 'YOU WIN!' : 'GAME OVER';
+      msg = !s.winners.length ? 'Game over' : me.won ? (s.winners.length > 1 ? 'It\'s a tie, and you\'re a winner! 🏆' : 'Congratulations! 🏆') : `${s.winners.map(esc).join(' & ')} won!`;
+      if (s.overAt !== lastOver){ lastOver = s.overAt; confetti(); }
+    }
+    else if (s.phase === 'lobby'){ msg = "You're in! Waiting for the first song…" + (modeText(s) ? `<div class="small muted" style="margin-top:8px;font-weight:400">${modeText(s)}</div>` : ''); label = 'WAIT'; }
     else if (s.phase === 'open'){
       if (me.locked){ msg = "You've had your shot this song."; label = 'LOCKED'; }
       else if (pendingBuzz){ msg = 'Buzzing…'; label = '…'; }
@@ -551,7 +752,7 @@ function runPlayer(room){
     app.innerHTML = `<div class="player">
       <div class="top"><span class="me">${esc(me?.name || name)}</span><span class="pts">${me ? me.score + ' pt' + (me.score===1?'':'s') : ''}</span></div>
       <div class="mid">
-        <div class="muted">${s?.round ? 'Song ' + s.round : ''}</div>
+        <div class="muted">${s?.round && s.phase !== 'over' ? 'Song ' + s.round : ''}${deadline && s?.phase !== 'over' ? ` · ⏱ <span class="clock" id="pclock">${fmtTime(deadline - Date.now())}</span>` : ''}</div>
         <button class="buzzer ${cls}" id="bz" ${disabled ? 'disabled' : ''}>${label}</button>
         <div class="pmsg">${msg}</div>
       </div>
