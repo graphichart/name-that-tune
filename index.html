@@ -4,25 +4,32 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Name That Tune</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Ccircle cx='60' cy='60' r='56' fill='%230a0a0a'/%3E%3Ccircle cx='60' cy='60' r='42' fill='none' stroke='%23333' stroke-width='4'/%3E%3Ccircle cx='60' cy='60' r='22' fill='%23ff7a00'/%3E%3Ccircle cx='60' cy='60' r='5' fill='%230a0a0a'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
-:root{--bg:#120d24;--panel:#1d1638;--panel2:#271e4a;--line:#3a2f66;--text:#f4f1ff;--muted:#a79fcf;
-  --pink:#ff3d7f;--gold:#ffd23f;--teal:#2ee6c5;--red:#ff4d4d;--green:#33d17a}
+:root{--bg:#121212;--panel:#1e1e1e;--panel2:#2a2a2a;--line:#363636;--text:#f5f5f5;--muted:#a6a6a6;--input:#0d0d0d;
+  --pink:#ff3d7f;--gold:#ffd000;--orange:#ff7a00;--teal:#2ee6c5;--red:#ff4d4d;--green:#33d17a;--blue:#2f8cff}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 button{font:inherit;cursor:pointer;border:0;border-radius:10px;padding:10px 14px;background:var(--panel2);color:var(--text)}
 button:hover:not(:disabled){filter:brightness(1.2)}
 button:disabled{opacity:.4;cursor:not-allowed}
-input,textarea{font:inherit;background:#0c0819;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px;width:100%}
+input,textarea{font:inherit;background:var(--input);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px;width:100%}
 .muted{color:var(--muted)} .small{font-size:13px}
-.title{font-weight:900;letter-spacing:.04em;background:linear-gradient(90deg,var(--pink),var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent}
-kbd{background:#0c0819;border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:12px}
+.brand{display:flex;align-items:center;gap:.35em}
+.brand svg{flex:none;width:2.4em;height:2.4em}
+.title{font-family:Bungee,'Arial Black',Impact,sans-serif;font-weight:400;color:var(--gold);line-height:.95;margin:0;white-space:nowrap;
+  text-shadow:.05em .05em 0 #000,.09em .09em 0 var(--orange);transform:rotate(-4deg);display:inline-block}
+.brand.stack{flex-direction:column;gap:.5em;text-align:center}
+kbd{background:var(--input);border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:12px}
 
 /* ---------- HOST ---------- */
 .host{max-width:1100px;margin:0 auto;padding:16px}
 .host header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:14px}
-.host h1{margin:0;font-size:28px}
+.host .brand{font-size:17px}
 .grid{display:grid;grid-template-columns:1.4fr 1fr;gap:14px}
 @media (max-width:800px){.grid{grid-template-columns:1fr}}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
@@ -43,7 +50,7 @@ td.ctl{text-align:right;white-space:nowrap;width:110px}
 td.ctl button{padding:3px 9px;font-size:13px}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:#555}
 .dot.on{background:var(--green)}
-.answer{background:#0c0819;border-radius:10px;padding:10px;margin-top:8px}
+.answer{background:var(--input);border-radius:10px;padding:10px;margin-top:8px}
 .warn{background:#3d2a12;border:1px solid #7a5520;color:#ffcf8a;border-radius:10px;padding:10px;margin-bottom:12px}
 .log{max-height:160px;overflow:auto;font-size:13px}
 .qrsmall{background:#fff;padding:8px;border-radius:10px;display:inline-block}
@@ -51,7 +58,7 @@ td.ctl button{padding:3px 9px;font-size:13px}
 /* ---------- DISPLAY (share this in Zoom) ---------- */
 .display{height:100vh;display:grid;grid-template-columns:1.6fr 1fr;gap:3vw;padding:4vh 4vw}
 .display .left{display:flex;flex-direction:column;justify-content:center}
-.display .dtitle{font-size:6vw;line-height:1;margin:0}
+.display .brand{font-size:3.4vw;margin-bottom:2vh}
 .display .round{font-size:2vw;color:var(--muted);margin:1.5vh 0 4vh}
 .banner{font-size:4vw;font-weight:900;line-height:1.1}
 .banner .sub{display:block;font-size:2vw;font-weight:600;color:var(--muted);margin-top:1.5vh}
@@ -85,13 +92,13 @@ td.ctl button{padding:3px 9px;font-size:13px}
   background:radial-gradient(circle at 35% 30%,#ff7aa6,var(--pink) 45%,#a3123f);box-shadow:0 12px 0 #6e0b2a,0 18px 40px rgba(255,61,127,.35);
   touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
 .buzzer:active:not(:disabled){transform:translateY(8px);box-shadow:0 4px 0 #6e0b2a}
-.buzzer:disabled{background:#3a3354;box-shadow:0 12px 0 #231d38;opacity:1;color:#8a82b0;font-size:28px}
+.buzzer:disabled{background:#333;box-shadow:0 12px 0 #1c1c1c;opacity:1;color:#8c8c8c;font-size:28px}
 .buzzer.mine{background:radial-gradient(circle at 35% 30%,#7cf0b0,var(--green) 45%,#137a43);box-shadow:0 12px 0 #0b4f2a;color:#fff}
 .pmsg{font-size:20px;font-weight:700;min-height:56px}
 .join-form{max-width:360px;width:100%;display:flex;flex-direction:column;gap:12px}
 .conn{font-size:12px;color:var(--muted);text-align:center}
 .modes{display:flex;flex-direction:column;gap:8px;margin:4px 0}
-.modes label{display:flex;align-items:center;gap:8px;background:#0c0819;border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer}
+.modes label{display:flex;align-items:center;gap:8px;background:var(--input);border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer}
 .modes label.sel{border-color:var(--teal)}
 .modes input[type=radio]{width:auto;margin:0;accent-color:var(--teal)}
 .modes input[type=number]{width:70px;padding:4px 8px;text-align:center}
@@ -99,7 +106,8 @@ td.ctl button{padding:3px 9px;font-size:13px}
 .toggle{background:transparent;border:1px solid var(--line)}
 #confetti{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:10}
 .trophy{font-size:8vw;line-height:1}
-.winner{font-size:6.5vw;font-weight:900;margin:1vh 0;line-height:1.05;color:var(--gold)}
+.winner{font-family:Bungee,'Arial Black',Impact,sans-serif;font-size:5.5vw;margin:2vh 0;line-height:1.05;color:var(--gold);
+  text-shadow:.05em .05em 0 #000,.09em .09em 0 var(--orange);transform:rotate(-3deg);transform-origin:left}
 .help{font-size:14px;color:var(--muted);font-weight:400;line-height:1.4;margin-top:12px}
 .help a{color:var(--teal);word-break:break-all}
 .landing input{text-align:center;font-size:24px;letter-spacing:.2em;text-transform:uppercase}
@@ -138,6 +146,12 @@ function ranked(players){
 }
 
 const HOST_KEY = 'ntt-host-state';
+const VINYL = `<svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="56" fill="#0a0a0a" stroke="#3a3a3a" stroke-width="2"/>
+  <g fill="none" stroke="#2c2c2c" stroke-width="2"><circle cx="60" cy="60" r="48"/><circle cx="60" cy="60" r="41"/><circle cx="60" cy="60" r="34"/></g>
+  <path d="M28 40 A40 40 0 0 1 52 22" stroke="#555" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <circle cx="60" cy="60" r="20" fill="#ff7a00"/><circle cx="60" cy="60" r="4" fill="#0a0a0a"/>
+  <g transform="translate(74 6)"><rect x="22" y="4" width="7" height="44" rx="2" fill="#ffd000"/><path d="M29 4 q16 6 14 22 q-4-10-14-10z" fill="#ffd000"/><ellipse cx="17" cy="48" rx="13" ry="10" fill="#ffd000" transform="rotate(-20 17 48)"/></g></svg>`;
+const brand = (oneLine, extra='') => `<div class="brand ${extra}">${VINYL}<h1 class="title">NAME THAT${oneLine ? ' ' : '<br>'}TUNE!</h1></div>`;
 const fmtTime = ms => { const t = Math.max(0, Math.ceil(ms/1000)); return Math.floor(t/60) + ':' + String(t%60).padStart(2,'0'); };
 const modeText = g => g.mode === 'points' ? `First to ${g.target} points wins` : g.mode === 'time' ? `Most points in ${g.minutes} min wins` : '';
 const boardRows = top => top.length
@@ -150,7 +164,7 @@ function confetti(){
   if (!cv){ cv = document.createElement('canvas'); cv.id = 'confetti'; document.body.appendChild(cv); }
   const dpr = window.devicePixelRatio || 1, c = cv.getContext('2d');
   const W = cv.width = innerWidth * dpr, H = cv.height = innerHeight * dpr;
-  const colors = ['#ff3d7f','#ffd23f','#2ee6c5','#8b6cff','#ffffff','#33d17a'];
+  const colors = ['#ffd000','#ff7a00','#2ee6c5','#2f8cff','#ffffff','#33d17a','#ff3b30'];
   const P = Array.from({length:240}, () => ({ x:Math.random()*W, y:-Math.random()*H, vx:(Math.random()-.5)*3, vy:2+Math.random()*4,
     r:Math.random()*6, vr:(Math.random()-.5)*.25, w:(6+Math.random()*8)*dpr, h:(10+Math.random()*10)*dpr, c:colors[Math.floor(Math.random()*colors.length)] }));
   const stopAt = performance.now() + 7000;
@@ -228,7 +242,7 @@ else runLanding();
 /* ============================== LANDING (typed URL, no code) ============================== */
 function runLanding(){
   app.innerHTML = `<div class="player landing"><div class="mid">
-    <h1 class="title" style="font-size:40px;margin:0">NAME THAT TUNE</h1>
+    <div style="font-size:28px">${brand(false,'stack')}</div>
     <form class="join-form" id="lf">
       <label class="muted">Game code (shown on the big screen)</label>
       <input id="code" maxlength="8" autocomplete="off" autocapitalize="characters" placeholder="ABCDE" required>
@@ -497,7 +511,7 @@ function runHost(){
     app.innerHTML = `
     <div class="host">
       <header>
-        <h1 class="title">NAME THAT TUNE</h1>
+        ${brand(true)}
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <span class="small muted">Game code <b style="color:var(--gold)">${S.room}</b> · <span class="dot ${peerStatus==='online'?'on':''}"></span>${esc(peerStatus)}</span>
           <button class="toggle" data-a="sound">${S.sound ? '🔊 Sound on' : '🔇 Sound off'}</button>
@@ -608,7 +622,7 @@ function runDisplay(room){
   setInterval(() => { if (!s) bc.postMessage({t:'hello'}); }, 1500);
 
   function render(){
-    if (!s){ app.innerHTML = `<div class="display"><div class="left"><h1 class="dtitle title">NAME THAT TUNE</h1><p class="round">Waiting for the host window…</p></div></div>`; return; }
+    if (!s){ app.innerHTML = `<div class="display"><div class="left">${brand(false)}<p class="round">Waiting for the host window…</p></div></div>`; return; }
     const urlText = esc(s.joinUrl.replace(/^https?:\/\//,'').replace(/\?.*$/,''));
     if (s.phase === 'over'){
       const w = s.winners;
@@ -639,7 +653,7 @@ function runDisplay(room){
     app.innerHTML = `
     <div class="display">
       <div class="left">
-        <h1 class="dtitle title">NAME THAT TUNE</h1>
+        ${brand(false)}
         <p class="round">${s.round ? 'Song ' + s.round : 'Get ready'}${s.round && modeLine ? ' · ' + modeLine : ''}</p>
         ${banner}
         <div class="flash">${showFlash ? esc(s.flash.text) : ''}</div>
@@ -714,7 +728,7 @@ function runPlayer(room){
   function render(){
     if (!joined){
       app.innerHTML = `<div class="player"><div class="mid">
-        <h1 class="title" style="font-size:40px;margin:0">NAME THAT TUNE</h1>
+        <div style="font-size:28px">${brand(false,'stack')}</div>
         <form class="join-form" id="jf">
           <label class="muted">Your display name</label>
           <input id="nm" maxlength="20" autocomplete="nickname" value="${esc(name)}" placeholder="e.g. DJ Dustin" required>
