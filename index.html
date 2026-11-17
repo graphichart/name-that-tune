@@ -28,7 +28,7 @@ kbd{background:var(--input);border:1px solid var(--line);border-radius:5px;paddi
 
 /* ---------- HOST ---------- */
 .host{max-width:1100px;margin:0 auto;padding:16px}
-.host header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:14px}
+.host header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin:6px 0 30px}
 .host .brand{font-size:17px}
 .grid{display:grid;grid-template-columns:1.4fr 1fr;gap:14px}
 @media (max-width:800px){.grid{grid-template-columns:1fr}}
@@ -39,7 +39,7 @@ kbd{background:var(--input);border:1px solid var(--line);border-radius:5px;paddi
 .chip{padding:4px 10px;border-radius:999px;font-size:13px;font-weight:700;background:var(--panel2)}
 .chip.open{background:#123d36;color:var(--teal)} .chip.taken{background:#3d3512;color:var(--gold)}
 .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-.btn-pink{background:var(--pink)} .btn-green{background:#1f8f55} .btn-gold{background:#a8860f} .btn-red{background:#a83232} .btn-teal{background:#178c78}
+.btn-pink{background:var(--pink)} .btn-lime{background:#2ee66b;color:#0d0d0d;font-weight:700} .btn-green{background:#1f8f55} .btn-gold{background:#a8860f} .btn-red{background:#a83232} .btn-teal{background:#178c78}
 .big{font-size:18px;padding:14px 18px;font-weight:700}
 .judge{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%}
 .judge .big{padding:18px;font-size:19px}
@@ -515,7 +515,7 @@ function runHost(){
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <span class="small muted">Game code <b style="color:var(--gold)">${S.room}</b> · <span class="dot ${peerStatus==='online'?'on':''}"></span>${esc(peerStatus)}</span>
           <button class="toggle" data-a="sound">${S.sound ? '🔊 Sound on' : '🔇 Sound off'}</button>
-          <button class="btn-pink" data-a="display">Open Zoom display window</button>
+          <button class="btn-lime" data-a="display">Open Zoom display window</button>
           <button data-a="undo" ${undo.length?'':'disabled'}>Undo <kbd>U</kbd></button>
         </div>
       </header>
