@@ -27,7 +27,8 @@ input,textarea{font:inherit;background:var(--input);color:var(--text);border:1px
 kbd{background:var(--input);border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:12px}
 
 /* ---------- HOST ---------- */
-.host{max-width:1100px;margin:0 auto;padding:16px}
+.host{max-width:1440px;margin:0 auto;padding:16px 28px}
+.netwarn{background:#3d2412;color:#ffbf8a;border:1px solid #7a4a20;border-radius:999px;padding:5px 12px;font-size:13px;font-weight:600;white-space:nowrap}
 .host header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin:6px 0 30px}
 .host .brand{font-size:17px}
 .grid{display:grid;grid-template-columns:1.4fr 1fr;gap:14px}
@@ -513,7 +514,8 @@ function runHost(){
       <header>
         ${brand(true)}
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <span class="small muted">Game code <b style="color:var(--gold)">${S.room}</b> · <span class="dot ${peerStatus==='online'?'on':''}"></span>${esc(peerStatus)}</span>
+          <span class="small muted" style="white-space:nowrap">Game code <b style="color:var(--gold)">${S.room}</b></span>
+          ${peerStatus === 'online' ? '' : `<span class="netwarn" title="${esc(peerStatus)} — phones can't join or buzz until this reconnects">⚠ Offline, retrying…</span>`}
           <button class="toggle" data-a="sound">${S.sound ? '🔊 Sound on' : '🔇 Sound off'}</button>
           <button class="btn-lime" data-a="display">Open Zoom display window</button>
           <button data-a="undo" ${undo.length?'':'disabled'}>Undo <kbd>U</kbd></button>
