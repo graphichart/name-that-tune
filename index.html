@@ -39,7 +39,7 @@ kbd{background:var(--input);border:1px solid var(--line);border-radius:5px;paddi
 .chip{padding:4px 10px;border-radius:999px;font-size:13px;font-weight:700;background:var(--panel2)}
 .chip.open{background:#123d36;color:var(--teal)} .chip.taken{background:#3d3512;color:var(--gold)}
 .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-.btn-pink{background:var(--pink)} .btn-lime{background:#2ee66b;color:#0d0d0d;font-weight:700} .btn-green{background:#1f8f55} .btn-gold{background:#a8860f} .btn-red{background:#a83232} .btn-teal{background:#178c78}
+.btn-lime{background:#2ee66b;color:#0d0d0d;font-weight:700} .btn-green{background:#1f8f55} .btn-gold{background:#a8860f} .btn-red{background:#a83232} .btn-teal{background:#178c78}
 .big{font-size:18px;padding:14px 18px;font-weight:700}
 .judge{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%}
 .judge .big{padding:18px;font-size:19px}
@@ -89,11 +89,11 @@ td.ctl button{padding:3px 9px;font-size:13px}
 .player .pts{font-weight:900;font-size:22px;color:var(--gold)}
 .player .mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;text-align:center}
 .buzzer{width:min(72vw,320px);height:min(72vw,320px);border-radius:50%;font-size:44px;font-weight:900;letter-spacing:.05em;
-  background:radial-gradient(circle at 35% 30%,#ff7aa6,var(--pink) 45%,#a3123f);box-shadow:0 12px 0 #6e0b2a,0 18px 40px rgba(255,61,127,.35);
+  background:radial-gradient(circle at 35% 30%,#8dffb0,#2ee66b 45%,#139a43);box-shadow:0 12px 0 #0b5e2a,0 18px 40px rgba(46,230,107,.3);color:#0d0d0d;
   touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
-.buzzer:active:not(:disabled){transform:translateY(8px);box-shadow:0 4px 0 #6e0b2a}
+.buzzer:active:not(:disabled){transform:translateY(8px);box-shadow:0 4px 0 #0b5e2a}
 .buzzer:disabled{background:#333;box-shadow:0 12px 0 #1c1c1c;opacity:1;color:#8c8c8c;font-size:28px}
-.buzzer.mine{background:radial-gradient(circle at 35% 30%,#7cf0b0,var(--green) 45%,#137a43);box-shadow:0 12px 0 #0b4f2a;color:#fff}
+.buzzer.mine{background:radial-gradient(circle at 35% 30%,#fff27a,#ffd000 45%,#b38f00);box-shadow:0 12px 0 #6b5600;color:#0d0d0d}
 .pmsg{font-size:20px;font-weight:700;min-height:56px}
 .join-form{max-width:360px;width:100%;display:flex;flex-direction:column;gap:12px}
 .conn{font-size:12px;color:var(--muted);text-align:center}
@@ -246,7 +246,7 @@ function runLanding(){
     <form class="join-form" id="lf">
       <label class="muted">Game code (shown on the big screen)</label>
       <input id="code" maxlength="8" autocomplete="off" autocapitalize="characters" placeholder="ABCDE" required>
-      <button class="btn-pink big" type="submit">Join game</button>
+      <button class="btn-lime big" type="submit">Join game</button>
     </form>
     <a href="?host" class="small" style="color:var(--muted)">Host a game instead</a>
   </div></div>`;
@@ -483,10 +483,10 @@ function runHost(){
             ${opt('points', `First to <input type="number" id="target" min="1" max="999" value="${S.target}"> points wins`)}
             ${opt('time',   `Most points after <input type="number" id="minutes" min="1" max="180" value="${S.minutes}"> minutes wins`)}
           </div>
-          <button class="btn-pink big" data-a="start" style="margin-top:12px">▶ Start game</button>
+          <button class="btn-lime big" data-a="start" style="margin-top:12px">▶ Start game</button>
         </div>`;
     } else if (st === 'over'){
-      actions = `<button class="btn-pink big" data-a="again">↻ Play again (same players)</button>`;
+      actions = `<button class="btn-lime big" data-a="again">↻ Play again (same players)</button>`;
     } else {
       const b = (a, cls, label, key, en) => `<button class="${cls} big" data-a="${a}" ${en ? '' : 'disabled'}>${label} <kbd>${key}</kbd></button>`;
       actions = `<div class="judge">
@@ -732,7 +732,7 @@ function runPlayer(room){
         <form class="join-form" id="jf">
           <label class="muted">Your display name</label>
           <input id="nm" maxlength="20" autocomplete="nickname" value="${esc(name)}" placeholder="e.g. DJ Dustin" required>
-          <button class="btn-pink big" type="submit">Join game ${esc(room)}</button>
+          <button class="btn-lime big" type="submit">Join game ${esc(room)}</button>
         </form></div></div>`;
       document.getElementById('jf').addEventListener('submit', e => {
         e.preventDefault(); name = document.getElementById('nm').value.trim().slice(0,20);
