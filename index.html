@@ -595,7 +595,11 @@ function runHost(){
        plus:()=>adjust(id,1), minus:()=>adjust(id,-1), remove:()=>removePlayer(id),
        newgame:newGame, again:playAgain, endnow:endNow, plusmin:addMinute,
        sound:()=>{ S.sound = !S.sound; changed(); if (S.sound) play('correct'); },
-       newcode:()=>{ if (confirmInline('newcode')){ store.del(KEY); location.reload(); } }
+       newcode:()=>{ if (confirmInline('newcode')){
+         try { bc.postMessage({t:'close'}); } catch {}   // tell the Zoom display window to close itself
+         try { displayWin?.close(); } catch {}
+         store.del(KEY); setTimeout(() => { location.href = location.pathname + '?host'; }, 200);
+       } }
     })[b.dataset.a]?.();
   });
   document.addEventListener('keydown', e => {
@@ -619,7 +623,13 @@ function runDisplay(room){
   const bc = new BroadcastChannel('ntt-' + room);
   let s = null, flashTimer, lastOver = null;
   setInterval(() => { const el = document.getElementById('dclock'); if (el && s?.endsAt) el.textContent = fmtTime(s.endsAt - Date.now()); }, 250);
-  bc.onmessage = e => { if (e.data?.t === 'state'){ s = e.data.s; render(); } };
+  bc.onmessage = e => {
+    if (e.data?.t === 'state'){ s = e.data.s; render(); }
+    else if (e.data?.t === 'close'){
+      window.close();   // works when the host opened this window
+      setTimeout(() => { app.innerHTML = `<div class="display"><div class="left">${brand(false)}<p class="round">This game has ended. You can close this window and open a new one from the host screen.</p></div></div>`; }, 300);
+    }
+  };
   bc.postMessage({t:'hello'});
   setInterval(() => { if (!s) bc.postMessage({t:'hello'}); }, 1500);
 
